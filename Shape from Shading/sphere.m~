@@ -1,0 +1,93 @@
+clc;clear all;close all
+
+img1=imread('sphere-images/real1.bmp');
+img1=im2double(img1);
+l1=[0.38359 0.236647 0.892668];
+
+img2=imread('sphere-images/real2.bmp');
+img2=im2double(img2);
+l2=[0.372825 -0.303914 0.87672];
+
+img3=imread('sphere-images/real3.bmp');
+img3=im2double(img3);
+l3=[-0.250814 -0.34752 0.903505];
+
+% img4=imread('im4.png');
+% img4=im2double(img4);
+% l4=[-0.203844 0.096308 0.974255];
+
+S=[l1;l2;l3];
+I=zeros(3,1);
+[h,w]=size(img1);
+g=zeros(h,w,3);
+for i=1:h
+    for j=1:w
+        I(:,1)=[img1(i,j);img2(i,j);img3(i,j)];
+        Is=[img1(i,j),0,0;0,img2(i,j),0;0,0,img3(i,j)];
+        Im=Is*I;
+        g(i,j,:)=pinv(Is*S)*Im;
+% g(i,j,:)=S\I;
+    end
+end
+ albedo=sqrt(g(:,:,1).^2+ g(:,:,2).^2+g(:,:,3).^2); 
+ figure,imshow(albedo,[]);title('Albedo')
+ N=zeros(h,w,3);
+N(:,:,1)=g(:,:,1)./albedo;
+N(:,:,2)=g(:,:,2)./albedo;
+N(:,:,3)=g(:,:,3)./albedo;
+p=N(:,:,1)./N(:,:,3);
+q=N(:,:,2)./N(:,:,3);
+x1=linspace(0,1,h);
+y1=linspace(0,1,w);
+[x,y] = meshgrid(x1,y1);
+figure
+quiver(x,y,p,q),title('Normal Field');
+fx=zeros(h,w);
+depth=zeros(h,w);
+a=0;
+
+% Integration using simple algorith used in forsyth
+for i=2:h
+    depth(i,1)=depth(i-1,1)+q(i,1); 
+end
+for i=2:h
+    for j=2:w
+    depth(i,j)=depth(i-1,j)+p(i,j);
+    end
+end
+depthc=zeros(h,w);
+
+%%
+     
+% Integration using frankotchellappa
+ d2=frankotchellappa(p,q);
+ DepthMap=d2;
+figure,imshow(DepthMap,[]);title('Depthmap');
+[ X, Y ] = meshgrid( 1:w, 1:h );
+figure;
+surf( X, Y, depth, 'EdgeColor', 'none' ); title('3D reconstruction using simple integration');
+camlight left;
+lighting phong
+
+figure;
+surf( X, Y, DepthMap, 'EdgeColor', 'none' ); title('3D reconstruction using frankotchellappa integration');
+camlight left;
+lighting phong
+
+figure
+surfnorm(X(1:5:100,1:5:100),Y(1:5:100,1:5:100),d2(1:5:100,1:5:100)),title('Surface Normals');
+
+%%
+l4=[-0.203844 0.096308 0.974255];
+
+I4=zeros(h,w);
+nor=zeros(1,3);
+for i=1:h
+    for j=1:w
+        nor(1,:)=[p(i,j),q(i,j),1];
+I4(i,j)=albedo(i,j)*(dot(nor(1,:),l4(1,:),2));
+    end
+end
+figure,
+
+imshow(I4,[]);title('Image reconstruction from albedo and light [-0.203844 0.096308 0.974255]');
